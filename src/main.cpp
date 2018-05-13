@@ -250,7 +250,7 @@ int main() {
 			{
 				  float new_car_s = car_s + dist_inc*(i+1);
 				  float new_car_d = car_d ;
-				  vector<double> new_xy = getXY(new_car_s,new_car_d,&maps_s,&maps_x,&maps_y)
+				  vector<double> new_xy = getXY(new_car_s,new_car_d,map_waypoints_s, map_waypoints_x, map_waypoints_y);
 				  next_x_vals.push_back(new_xy[0]);
 				  next_y_vals.push_back(new_xy[1]);
 				  // next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
