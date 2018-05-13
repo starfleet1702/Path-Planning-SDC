@@ -8,6 +8,7 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
+#include "spline.h"
 
 using namespace std;
 
@@ -242,8 +243,35 @@ int main() {
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
 
-
+			vector<double> anchor_ptsx, anchor_ptsy;
+			
+			
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
+			float spline_ref_dist = 30.0;
+			vector<double> next_wp0 = getXY( car_s+spline_ref_dist,(2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+			vector<double> next_wp1 = getXY( car_s+2.0*spline_ref_dist,(2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+			vector<double> next_wp2 = getXY( car_s+3.0*spline_ref_dist,(2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+
+			anchor_ptsx.push_back(next_wp0[0]);
+			anchor_ptsx.push_back(next_wp1[0]);
+			anchor_ptsx.push_back(next_wp2[0]);
+
+			anchor_ptsy.push_back(next_wp0[1]);
+			anchor_ptsy.push_back(next_wp1[1]);
+			anchor_ptsy.push_back(next_wp2[1]);
+			
+			for( int i=0; i<anchor_ptsx.size(); i++){
+				//shifting anchor points to car's reference frame
+				double shift_x = anchor_ptsx[i] - car_x;
+				double shift_y = anchor_ptsy[i] - car_y;
+
+				anchor_ptsx[i] = (shift_x * cos(- car_yaw) - shift_y*sin(- car_yaw));
+				anchor_ptsy[i] = (shift_x * sin(- car_yaw) + shift_y*cos(- car_yaw));
+			}
+			
+			tk::spline s;
+			s.set_points(anchor_ptsx,anchor_ptsy);			
+			
 			double dist_inc = 0.5; //in meters
 			
 			for(int i = 0; i < 50; i++)
