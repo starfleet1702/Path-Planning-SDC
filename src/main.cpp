@@ -10,12 +10,16 @@
 #include "json.hpp"
 #include "spline.h"
 
+#define NUM_OF_LANES 3
+#define LANE_WIDTH 4.0
 #define MPH_TO_MPS 0.44704
 #define TIME_BETWEEN_WAYPOINTS 0.02
 #define MAX_VELOCITY_IN_MPH 45
-//kept it 8 to have some buffer it is calculated by comparing the rate of change of average speed over .2 second intervals
-#define MAX_ACCELERATION 5 //in mps^2 
-#define ACCL_CALC_INTERVAL 0.2 // in seconds
+#define MIN_VELOCITY_IN_MPH 30
+#define MAX_ACCELERATION 7 //in mps^2 kept it 7 to have some before max allowed value in simulator is 10mps^2
+#define FRONT_CLEAR_DISTANCE_FOR_LANE_CHANGE 30
+#define REAR_CLEAR_DISTANCE_FOR_LANE_CHANGE 10
+#define BUFFER_DISTANCE_TO_FRONT_VEHICLE 30
 
 using namespace std;
 
@@ -187,6 +191,8 @@ int main() {
   double max_s = 6945.554;
   float ref_vel = 0.0;
   int lane = 1 ;
+  float target_velocity = MAX_VELOCITY_IN_MPH;
+
 
   ifstream in_map_(map_file_.c_str(), ifstream::in);
 
@@ -210,7 +216,7 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
 
-  h.onMessage([&ref_vel, &lane, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&target_velocity, &ref_vel, &lane, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -257,13 +263,22 @@ int main() {
 			
 			int prev_path_size = previous_path_x.size();
 			
+			
 			//reference x,y, yaw states
 			double ref_x = car_x;
 			double ref_y = car_y;
 			double ref_yaw = deg2rad(car_yaw);
+			bool is_lane_safe_to_change[] = {true,true,true};
+			bool is_slow_car_is_in_front = false;
 			
-			/*
-			for(int i =0 ; i<sensor_fusion.size();i++){
+			lane = ((int)car_d/LANE_WIDTH);
+			
+			if(prev_path_size>0){
+				car_s = end_path_s;
+			}
+			
+			
+			for(int i=0 ; i<sensor_fusion.size();i++){
 				float d_other = sensor_fusion[i][6];
 				float vx = sensor_fusion[i][3];
 				float vy = sensor_fusion[i][4];
@@ -272,17 +287,56 @@ int main() {
 				double car_s_other = sensor_fusion[i][5];
 				
 				//predicting the future position of car based on last point in previous path
-				car_s_other = (prev_path_size*TIME_BETWEEN_WAYPOINTS*speed_other);
+				car_s_other += (prev_path_size*TIME_BETWEEN_WAYPOINTS*speed_other);
+				
 				
 				//checking if car is in our lane
-				if(d)
-			*/
-			
-			if(ref_vel < MAX_VELOCITY_IN_MPH){
-				//10mps2
-				// ref_vel += 10*0.02/MPH_TO_MPS;
-				ref_vel += MAX_ACCELERATION*TIME_BETWEEN_WAYPOINTS/MPH_TO_MPS;
+				if(d_other >=(LANE_WIDTH*lane) && d_other <= (LANE_WIDTH*(lane+1))){
+					//cheking if slow moving car is in 30 m front range
+					if(car_s_other>car_s && car_s_other<(car_s+BUFFER_DISTANCE_TO_FRONT_VEHICLE)){
+						// cout<<"car detected"<<endl;
+						if(speed_other < MAX_VELOCITY_IN_MPH){
+							is_slow_car_is_in_front = true;
+							target_velocity = speed_other;
+							// cout<<"slow car detected"<<endl;
+						}
+					}
+				}
+				
+				int lane_of_other_car = ((int)d_other/LANE_WIDTH);
+				//checking if car is there in front 
+				if((car_s_other > car_s - REAR_CLEAR_DISTANCE_FOR_LANE_CHANGE) && (car_s_other < car_s + FRONT_CLEAR_DISTANCE_FOR_LANE_CHANGE)){
+					is_lane_safe_to_change[lane_of_other_car] = false;
+				}
 			}
+			
+			if(is_slow_car_is_in_front){
+				//left lane check
+				int left_lane = lane-1;
+				int right_lane = lane+1;
+				if(left_lane >= 0 && is_lane_safe_to_change[left_lane]){
+					lane = left_lane;
+				}else if(right_lane < NUM_OF_LANES && is_lane_safe_to_change[right_lane]){
+					lane = right_lane;
+				}
+				else if(ref_vel > target_velocity){
+					ref_vel -= MAX_ACCELERATION*TIME_BETWEEN_WAYPOINTS/MPH_TO_MPS;
+				}
+			}
+			else {
+				target_velocity = MAX_VELOCITY_IN_MPH;
+				if(ref_vel < target_velocity){
+					ref_vel += MAX_ACCELERATION*TIME_BETWEEN_WAYPOINTS/MPH_TO_MPS;
+				}
+			}/*else if(ref_vel >= MAX_VELOCITY_IN_MPH){
+				if(is_slow_car_is_in_front){
+					ref_vel -= MAX_ACCELERATION*TIME_BETWEEN_WAYPOINTS/MPH_TO_MPS;
+				}
+			}*/
+			/*else{
+				cout<<"ref_vel : "<<ref_vel<<endl;
+				cout<<"ref_vel*MPH_TO_MPS*TIME_BETWEEN_WAYPOINTS : "<<ref_vel*MPH_TO_MPS*TIME_BETWEEN_WAYPOINTS<<endl;
+			}*/
 			
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 			float spline_ref_dist = 30.0;
@@ -384,28 +438,21 @@ int main() {
 			double target_x = 30.0;
 			double target_y = s(target_x);
 			double target_dist = sqrt( target_x*target_x + target_y*target_y );
-
 			double x_add_on = 0;
 			
 			//Fill up the rest of our path planner after filling it with previous points, here we will always output 80 points
 			for(int i=1; i<=50-previous_path_x.size(); i++){
-
 				double N = (target_dist/(0.02*ref_vel/2.24));
 				double x_point = x_add_on+(target_x)/N;
 				double y_point = s(x_point);
-
 				x_add_on = x_point;
-
 				double x_ref = x_point;
 				double y_ref = y_point;
-
 				//rotate back to normal
 				x_point = x_ref*cos(ref_yaw) - y_ref*sin(ref_yaw);
 				y_point = x_ref*sin(ref_yaw) + y_ref*cos(ref_yaw);
-
 				x_point +=ref_x;
 				y_point +=ref_y;
-
 				next_x_vals.push_back(x_point);
 				next_y_vals.push_back(y_point);
 			}*/
