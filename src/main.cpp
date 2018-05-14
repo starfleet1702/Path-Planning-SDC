@@ -262,6 +262,7 @@ int main() {
 			double ref_y = car_y;
 			double ref_yaw = deg2rad(car_yaw);
 			
+			/*
 			for(int i =0 ; i<sensor_fusion.size();i++){
 				float d_other = sensor_fusion[i][6];
 				float vx = sensor_fusion[i][3];
@@ -275,7 +276,7 @@ int main() {
 				
 				//checking if car is in our lane
 				if(d)
-			
+			*/
 			
 			if(ref_vel < MAX_VELOCITY_IN_MPH){
 				//10mps2
@@ -346,11 +347,11 @@ int main() {
 			
 			// cout<<"car_x : "<<car_x<<" car_y : "<<car_y<<" ref_yaw : "<<ref_yaw<<endl;
 			
-			for(int i = 1; i < 50-prev_path_size; i++)
+			for(int i = 0; i < 50-prev_path_size; i++)
 			{	  
 		
 				  // 3. 
-				    float way_x = (i)*dist_inc;
+				    float way_x = (i+1)*dist_inc;
 				    float way_y = s(way_x);
 					 
 					//shifting to global map cordinate system
