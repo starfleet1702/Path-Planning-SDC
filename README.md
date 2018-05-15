@@ -72,6 +72,8 @@ To start with the implementation the first few lines of code describes the const
 
 `BUFFER_DISTANCE_TO_FRONT_VEHICLE 30` : It defines the distance to keep from a vehicle in front.
 
+`NUM_WAYPOINTS 50` : Total number of waypoints sent to simulator is 50. which is enough to have smooth trajectory and to cop up with changing  postion of surrounding vehicles.
+
 ### Trajectory Generation
 
 Our target here is to be lane and keep driving straight smootly if there is no slow moving vehicle in our front. To be in the same lane we have to maintain some fix distance  from the center of the road. to maintain this distance I am utilizing highway waypoints given in a file. we are also using Frenet Cordinate system to make math easy to understand. 
@@ -100,7 +102,7 @@ As these highway points are sparse, relying on them directly may introduce sharp
 	
 			}
 
-To also make the trajectory continous and consistent with the previous path , I am utilizing remaining waypoints yet to be covered from the previous path and generating only remaining new waypoints. total number of waypoints sent is 50. which is enough to have smooth trajectory and to cop up with changing  postion of surrounding vehicles.
+To also make the trajectory continous and consistent with the previous path , I am utilizing remaining waypoints yet to be covered from the previous path and generating only remaining new waypoints. Total number of waypoints sent to simulator is 50. which is enough to have smooth trajectory and to cop up with changing  postion of surrounding vehicles.
 
 ##### Achieving constant Speed
 

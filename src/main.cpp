@@ -22,6 +22,7 @@
 #define FRONT_CLEAR_DISTANCE_FOR_LANE_CHANGE 30
 #define REAR_CLEAR_DISTANCE_FOR_LANE_CHANGE 10
 #define BUFFER_DISTANCE_TO_FRONT_VEHICLE 30
+#define NUM_WAYPOINTS 50
 
 using namespace std;
 
@@ -402,7 +403,7 @@ int main() {
 			tk::spline s;
 			s.set_points(anchor_ptsx,anchor_ptsy);
 			//---------------------------- Generating Waypoints -----------------------
-			for(int i = 0; i < 50-prev_path_size; i++)
+			for(int i = 0; i < NUM_WAYPOINTS-prev_path_size; i++)
 			{	  
 				    float way_x = (i+1)*dist_inc;
 				    float way_y = s(way_x);
@@ -427,7 +428,7 @@ int main() {
 			double x_add_on = 0;
 			
 			//Fill up the rest of our path planner after filling it with previous points, here we will always output 80 points
-			for(int i=1; i<=50-previous_path_x.size(); i++){
+			for(int i=1; i<=NUM_WAYPOINTS-previous_path_x.size(); i++){
 				double N = (target_dist/(0.02*ref_vel/2.24));
 				double x_point = x_add_on+(target_x)/N;
 				double y_point = s(x_point);
