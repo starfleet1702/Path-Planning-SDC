@@ -10,12 +10,14 @@
 #include "json.hpp"
 #include "spline.h"
 
+//---------------- Defining Constant --------------------------------
+
 #define NUM_OF_LANES 3
 #define LANE_WIDTH 4.0
 #define MPH_TO_MPS 0.44704
 #define TIME_BETWEEN_WAYPOINTS 0.02
 #define MAX_VELOCITY_IN_MPH 45
-#define MIN_VELOCITY_IN_MPH 30
+//	#define MIN_VELOCITY_IN_MPH 30
 #define MAX_ACCELERATION 7 //in mps^2 kept it 7 to have some before max allowed value in simulator is 10mps^2
 #define FRONT_CLEAR_DISTANCE_FOR_LANE_CHANGE 30
 #define REAR_CLEAR_DISTANCE_FOR_LANE_CHANGE 10
@@ -269,7 +271,7 @@ int main() {
 			double ref_y = car_y;
 			double ref_yaw = deg2rad(car_yaw);
 			bool is_lane_safe_to_change[] = {true,true,true};
-			bool is_slow_car_is_in_front = false;
+			bool is_slow_car_in_front = false;
 			
 			lane = ((int)car_d/LANE_WIDTH);
 			
@@ -277,8 +279,8 @@ int main() {
 				car_s = end_path_s;
 			}
 			
-			
-			for(int i=0 ; i<sensor_fusion.size();i++){
+			// Deciding Safe lanes to change
+			for(int i=0 ; i<sensor_fusion.size(); i++){
 				float d_other = sensor_fusion[i][6];
 				float vx = sensor_fusion[i][3];
 				float vy = sensor_fusion[i][4];
@@ -296,7 +298,7 @@ int main() {
 					if(car_s_other>car_s && car_s_other<(car_s+BUFFER_DISTANCE_TO_FRONT_VEHICLE)){
 						// cout<<"car detected"<<endl;
 						if(speed_other < MAX_VELOCITY_IN_MPH){
-							is_slow_car_is_in_front = true;
+							is_slow_car_in_front = true;
 							target_velocity = speed_other;
 							// cout<<"slow car detected"<<endl;
 						}
@@ -310,8 +312,7 @@ int main() {
 				}
 			}
 			
-			if(is_slow_car_is_in_front){
-				//left lane check
+			if(is_slow_car_in_front){
 				int left_lane = lane-1;
 				int right_lane = lane+1;
 				if(left_lane >= 0 && is_lane_safe_to_change[left_lane]){
@@ -329,7 +330,7 @@ int main() {
 					ref_vel += MAX_ACCELERATION*TIME_BETWEEN_WAYPOINTS/MPH_TO_MPS;
 				}
 			}/*else if(ref_vel >= MAX_VELOCITY_IN_MPH){
-				if(is_slow_car_is_in_front){
+				if(is_slow_car_in_front){
 					ref_vel -= MAX_ACCELERATION*TIME_BETWEEN_WAYPOINTS/MPH_TO_MPS;
 				}
 			}*/
@@ -338,7 +339,6 @@ int main() {
 				cout<<"ref_vel*MPH_TO_MPS*TIME_BETWEEN_WAYPOINTS : "<<ref_vel*MPH_TO_MPS*TIME_BETWEEN_WAYPOINTS<<endl;
 			}*/
 			
-          	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 			float spline_ref_dist = 30.0;
 			
 			
@@ -389,9 +389,7 @@ int main() {
 				anchor_ptsy[i] = (shift_x * sin(- ref_yaw) + shift_y*cos(- ref_yaw));
 			}
 			
-			tk::spline s;
-			s.set_points(anchor_ptsx,anchor_ptsy);		
-
+				
 			for(int i=0; i<prev_path_size; i++){
 				next_x_vals.push_back(previous_path_x[i]);
 				next_y_vals.push_back(previous_path_y[i]);
@@ -401,17 +399,17 @@ int main() {
 			
 			// cout<<"car_x : "<<car_x<<" car_y : "<<car_y<<" ref_yaw : "<<ref_yaw<<endl;
 			
+			tk::spline s;
+			s.set_points(anchor_ptsx,anchor_ptsy);
+			//---------------------------- Generating Waypoints -----------------------
 			for(int i = 0; i < 50-prev_path_size; i++)
 			{	  
-		
-				  // 3. 
 				    float way_x = (i+1)*dist_inc;
 				    float way_y = s(way_x);
 					 
-					//shifting to global map cordinate system
 					// cout<<"way_x : "<<way_x<<" way_y : "<<way_y<<endl;
 					 
-					 
+					//shifting to global map cordinate system
 					float new_x = way_x*cos(ref_yaw)-way_y*sin(ref_yaw)+ref_x;
 					float new_y = way_x*sin(ref_yaw)+way_y*cos(ref_yaw)+ref_y;
 					
@@ -419,19 +417,7 @@ int main() {
 					 
 				    next_x_vals.push_back(new_x);
 					next_y_vals.push_back(new_y);
-		
-				  // 2. Driving on same lane
-				  // float new_car_s = car_s + dist_inc*(i+1);
-				  // float new_car_d = car_d ;
-				  // vector<double> new_xy = getXY(new_car_s,new_car_d,map_waypoints_s, map_waypoints_x, map_waypoints_y);
-				  
-				  
-				  // next_x_vals.push_back(new_xy[0]);
-				  // next_y_vals.push_back(new_xy[1]);
-				  
-				  // 1. Implementation - driving straight
-				  // next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
-				  // next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
+	
 			}
 			
 			/*
